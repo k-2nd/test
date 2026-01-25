@@ -1,0 +1,9 @@
+# dcpファイルの登録解除
+set dcps [get_files -filter {FILE_TYPE == "Design Checkpoint"}]
+if {[llength $dcps] > 0} { remove_files $dcps }
+
+# IPのキャッシュをクリア
+reset_target all [get_ips]
+
+# Tcl書き出し
+write_project_tcl -force -no_ip_compiled_results project_recreate.tcl
