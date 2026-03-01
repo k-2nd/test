@@ -1,47 +1,45 @@
 class MLPreprocessor:
-    def __init__(self, file_map=None):
-        # 外部からマップを渡せるようにすると、テスト時などにパスを差し替えやすくなります
+    def __init__(self, file_map):
         self.file_map = file_map
-        # BRAM array 等の初期化（省略）
+        # BRAM初期化などはそのまま
+        self.bram0 = np.zeros(8192, dtype=np.uint8)
+        self.bram2 = np.zeros(8192, dtype=np.uint8)
         self.input_vector = []
 
-    def load_input_data(self, key="in"):
-        """
-        FILE_MAP のキーを指定してデータを読み込む
-        """
-        # マップから Path オブジェクトを取得
-        if self.file_map is None or key not in self.file_map:
-            raise ValueError(f"Key '{key}' not found in file map.")
+    def load_input_data(self):
+        """画像2枚目のロジック"""
+        target = self.file_map["in"] # マップから取得
         
-        input_file = self.file_map[key]
+        if not target.exists():
+            raise FileNotFoundError(f"Input file not found: {target}")
 
-        # 1. 存在チェック (Pathオブジェクトのメソッド)
-        if not input_file.exists():
-            raise FileNotFoundError(f"Input file not found: {input_file}")
-
-        # 2. 読み込み (Pathオブジェクトをそのまま open に渡せる)
         self.input_vector = []
-        with open(input_file, 'r') as f:
+        with open(target, 'r') as f:
             for line in f:
                 line = line.strip()
-                # コメント行や空行をスキップ
-                if not line or line.startswith(('/', '#')):
-                    continue
-                # 16進数文字列を数値に変換
+                if not line or line.startswith(('/', '#')): continue
                 if len(line) == 64:
                     self.input_vector.append(int(line, 16))
+
+    def save_results(self):
+        """画像3枚目のロジック"""
+        target = self.file_map["out"]
         
-        print(f"Loaded {len(self.input_vector)} lines from {input_file.name}")
+        with open(target, 'w') as f:
+            for i in range(96):
+                addr = i * 2
+                val = int(self.bram2[addr]) | (int(self.bram2[addr+1]) << 8)
+                f.write(f"{val:04x}\n")
+        
+        # デバッグモードならトレースも保存
+        if globals().get('DEBUG_MODE'): # DEBUG_MODEが定義されていれば
+            self.save_trace_data()
 
-
-# 1. まずマップを定義（画像2枚目の内容）
-FILE_MAP = {
-    "in":  DATA_DIR / "input" / "test_input.mem",
-    "out": DATA_DIR / "generated" / "preprocessed_data.mem",
-}
-
-# 2. クラスにマップを渡してインスタンス化
-preprocessor = MLPreprocessor(file_map=FILE_MAP)
-
-# 3. 実行
-preprocessor.load_input_data("in")
+    def save_trace_data(self):
+        """画像3枚目の詳細ログ出力"""
+        target = self.file_map["trace"]
+        
+        with open(target, 'w') as f:
+            # 元のコードにある複雑なヘッダー・ログ出力ロジックをここに
+            f.write(f"--- Trace Data: {target.name} ---\n")
+            # ... (中略) ...
