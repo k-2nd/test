@@ -1,45 +1,24 @@
-class MLPreprocessor:
-    def __init__(self, file_map):
-        self.file_map = file_map
-        # BRAM初期化などはそのまま
-        self.bram0 = np.zeros(8192, dtype=np.uint8)
-        self.bram2 = np.zeros(8192, dtype=np.uint8)
-        self.input_vector = []
+# --- 1. Load Keras model ---
+print(f"\n[1] Loading Keras model: {FILE_MAP['model']}")
+if not FILE_MAP['model'].exists():
+    print(f"    [ERROR] Model file not found: {FILE_MAP['model']}")
+    return
 
-    def load_input_data(self):
-        """画像2枚目のロジック"""
-        target = self.file_map["in"] # マップから取得
-        
-        if not target.exists():
-            raise FileNotFoundError(f"Input file not found: {target}")
+model = load_model(FILE_MAP['model'], compile=False)
+model.summary()
 
-        self.input_vector = []
-        with open(target, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith(('/', '#')): continue
-                if len(line) == 64:
-                    self.input_vector.append(int(line, 16))
+# ... (中略) ...
 
-    def save_results(self):
-        """画像3枚目のロジック"""
-        target = self.file_map["out"]
-        
-        with open(target, 'w') as f:
-            for i in range(96):
-                addr = i * 2
-                val = int(self.bram2[addr]) | (int(self.bram2[addr+1]) << 8)
-                f.write(f"{val:04x}\n")
-        
-        # デバッグモードならトレースも保存
-        if globals().get('DEBUG_MODE'): # DEBUG_MODEが定義されていれば
-            self.save_trace_data()
+# --- 2. Load preprocessed data ---
+print(f"\n[2] Loading preprocessed data: {FILE_MAP['in']}")
+if not FILE_MAP['in'].exists():
+    print(f"    [ERROR] Input file not found: {FILE_MAP['in']}")
+    print(f"    Run 01_preprocessor.py first.")
+    return
 
-    def save_trace_data(self):
-        """画像3枚目の詳細ログ出力"""
-        target = self.file_map["trace"]
-        
-        with open(target, 'w') as f:
-            # 元のコードにある複雑なヘッダー・ログ出力ロジックをここに
-            f.write(f"--- Trace Data: {target.name} ---\n")
-            # ... (中略) ...
+raw_int = []
+with open(FILE_MAP['in']) as f:
+    for line in f:
+        line = line.strip()
+        if line and not line.startswith('//') and not line.startswith('#'):
+            raw_int.append(to_signed16(int(line, 16)))
